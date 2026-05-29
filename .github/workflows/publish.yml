@@ -1,0 +1,26 @@
+# Publish aroday-mcp to npm when a GitHub Release is published. Inert until
+# the repo owner adds an NPM_TOKEN secret and creates a release. Builds via
+# the `prepare` script (run by `npm ci`); publishes with provenance.
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance attestation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

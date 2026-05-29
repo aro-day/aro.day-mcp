@@ -1,0 +1,23 @@
+# CI for the aroday-mcp connector. Lives under packages/aroday-mcp/.github so
+# that a `git subtree split --prefix=packages/aroday-mcp` lands it at the new
+# repo's root .github/workflows/ where GitHub Actions can find it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # `npm ci` runs the `prepare` script (tsc build), so dist is produced.
+      - run: npm ci
+      - run: npm run typecheck
+      - uses: oven-sh/setup-bun@v2
+      - run: bun test

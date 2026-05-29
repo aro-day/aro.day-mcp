@@ -1,0 +1,46 @@
+{
+  "name": "aroday-mcp",
+  "version": "0.1.0",
+  "description": "Open-source MCP server for aro.day — let an AI client (Claude Desktop, Claude Code, Codex) read and update your tasks. Talks to your own Google Drive; aro.day's servers never see your task data.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "todo",
+    "tasks",
+    "task-manager",
+    "aro.day",
+    "claude",
+    "claude-code",
+    "ai-agent",
+    "productivity"
+  ],
+  "homepage": "https://github.com/MotazAbuElnasr/aroday-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MotazAbuElnasr/aroday-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MotazAbuElnasr/aroday-mcp/issues"
+  },
+  "bin": { "aroday-mcp": "dist/cli.js" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "test": "bun test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "npm run build"
+  },
+  "engines": { "node": ">=18" },
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.4.0"
+  }
+}
