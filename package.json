@@ -1,6 +1,6 @@
 {
   "name": "aroday-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Open-source MCP server for aro.day — let an AI client (Claude Desktop, Claude Code, Codex) read and update your tasks. Talks to your own Google Drive; aro.day's servers never see your task data.",
   "type": "module",
   "license": "MIT",
@@ -16,13 +16,13 @@
     "ai-agent",
     "productivity"
   ],
-  "homepage": "https://github.com/MotazAbuElnasr/aroday-mcp#readme",
+  "homepage": "https://github.com/aro-day/aro.day-mcp#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MotazAbuElnasr/aroday-mcp.git"
+    "url": "git+https://github.com/aro-day/aro.day-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/MotazAbuElnasr/aroday-mcp/issues"
+    "url": "https://github.com/aro-day/aro.day-mcp/issues"
   },
   "bin": { "aroday-mcp": "dist/cli.js" },
   "files": ["dist", "README.md", "LICENSE"],
