@@ -13,6 +13,14 @@ import { join } from "node:path";
 // Override for local development against a dev Worker.
 export const BASE_URL = process.env.ARODAY_BASE_URL?.replace(/\/$/, "") || "https://aro.day";
 
+// E2EE passphrase for accounts that enabled Drive encryption (aro.day
+// Settings → Privacy). Read once at module load. Stdio MCP has no
+// interactive prompt path; the user puts this in the MCP server's env
+// block in their AI client's config. The passphrase never leaves the
+// local process — it derives a key in-memory via PBKDF2 and is used
+// only for AES-GCM decrypt/encrypt of the Drive envelope.
+export const E2EE_PASSPHRASE = process.env.ARODAY_E2EE_PASSPHRASE || "";
+
 // Where the session JWT is cached (per-user, 0600). Mirrors the web app's
 // aroday_session cookie but stored on disk for the headless client.
 export const CONFIG_DIR = process.env.ARODAY_CONFIG_DIR || join(homedir(), ".config", "aroday");
