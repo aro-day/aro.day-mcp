@@ -1,5 +1,5 @@
 {
-  "name": "aroday-mcp",
+  "name": "@aro.day/mcp",
   "version": "0.1.3",
   "description": "Open-source MCP server for aro.day — let an AI client (Claude Desktop, Claude Code, Codex) read and update your tasks. Talks to your own Google Drive; aro.day's servers never see your task data.",
   "type": "module",

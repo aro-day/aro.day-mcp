@@ -1,4 +1,4 @@
-# aroday-mcp
+# @aro.day/mcp
 
 Open-source [MCP](https://modelcontextprotocol.io) server for
 [aro.day](https://aro.day) — let an AI client (Claude Desktop, Claude
@@ -16,7 +16,7 @@ server. This is why the connector is open source: so you can verify it.
 ## Install
 
 ```sh
-npm install -g aroday-mcp     # or: npx aroday-mcp …
+npm install -g @aro.day/mcp     # or: npx -y @aro.day/mcp …
 ```
 
 ## Connect (one-time)
@@ -30,9 +30,6 @@ to aro.day) and you're done — no code to copy. The session token is stored
 at `~/.config/aroday/session.json` (0600). AI integration is a **Pro
 feature**.
 
-No browser on this machine (SSH / headless)? Use the code fallback: in
-aro.day open **Settings → AI integration**, then `aroday-mcp login --code <CODE>`.
-
 ## Use it from your AI client
 
 Add the server to your client's MCP config. Example (Claude Desktop
@@ -41,7 +38,7 @@ Add the server to your client's MCP config. Example (Claude Desktop
 ```json
 {
   "mcpServers": {
-    "aroday": { "command": "aroday-mcp" }
+    "aroday": { "command": "npx", "args": ["-y", "@aro.day/mcp"] }
   }
 }
 ```
