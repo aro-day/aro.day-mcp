@@ -1,4 +1,4 @@
-# @aro-day/mcp
+# @aro.day/mcp
 
 Open-source [MCP](https://modelcontextprotocol.io) server for
 [aro.day](https://aro.day) — let an AI client (Claude Desktop, Claude
@@ -16,7 +16,7 @@ server. This is why the connector is open source: so you can verify it.
 ## Install
 
 ```sh
-npm install -g @aro-day/mcp     # or: npx -y @aro-day/mcp …
+npm install -g @aro.day/mcp     # or: npx -y @aro.day/mcp …
 ```
 
 ## Connect (one-time)
@@ -38,7 +38,7 @@ Add the server to your client's MCP config. Example (Claude Desktop
 ```json
 {
   "mcpServers": {
-    "aroday": { "command": "npx", "args": ["-y", "@aro-day/mcp"] }
+    "aroday": { "command": "npx", "args": ["-y", "@aro.day/mcp"] }
   }
 }
 ```
