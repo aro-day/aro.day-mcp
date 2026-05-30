@@ -26,10 +26,7 @@ function writeSession(data: SessionData): void {
 export function requireSession(): SessionData {
   const s = readSession();
   if (!s?.session) {
-    throw new Error(
-      "Not signed in. In aro.day open Settings → AI integration → Connect an AI client, " +
-      "then run:  aroday-mcp login --code <CODE>",
-    );
+    throw new Error("Not signed in. Run: aroday-mcp connect");
   }
   return s;
 }
@@ -68,7 +65,7 @@ export async function getDriveAccessToken(): Promise<string> {
     );
   }
   if (res.status === 401) {
-    throw new Error("Session expired. Re-pair: aroday-mcp login --code <CODE>");
+    throw new Error("Session expired. Re-connect: aroday-mcp connect");
   }
   if (res.status === 412) {
     throw new Error("Google Drive isn't connected for this account. Sign in to Drive in aro.day first.");
