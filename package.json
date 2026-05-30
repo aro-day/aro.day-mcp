@@ -1,6 +1,6 @@
 {
   "name": "aroday-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source MCP server for aro.day — let an AI client (Claude Desktop, Claude Code, Codex) read and update your tasks. Talks to your own Google Drive; aro.day's servers never see your task data.",
   "type": "module",
   "license": "MIT",
@@ -28,7 +28,7 @@
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && node -e \"require('fs').chmodSync('dist/cli.js',0o755)\"",
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepare": "npm run build"
