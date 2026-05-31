@@ -113,3 +113,67 @@ export function stampMeta(state: TodoState, by = "aroday-mcp"): void {
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+
+// --- entity builders ------------------------------------------------------
+// The connector writes back the SAME schemaVersion it read (drive.ts), and
+// the app's migration is version-gated (migrateStateInPlace only runs when
+// the blob is BEHIND) — so the app never re-initializes fields on a
+// connector-created entity. These builders therefore set every field the
+// app's canonical schema (todo repo → src/types/window-state.d.ts) marks
+// REQUIRED, so a freshly-created entity is valid the instant it lands.
+// Optional fields are left absent on purpose — the app reads them guarded
+// (rule 01). Keep the required set in lockstep with window-state.d.ts;
+// builders.test.ts asserts it and trips when the app promotes a field.
+
+export function buildTask(input: {
+  title: string;
+  groupId: string;
+  order: number;
+  priority?: 0 | 1 | 2 | 3;
+  dueAt?: string | null;
+  scheduledAt?: string | null;
+  estimationMinutes?: number | null;
+  tags?: string[];
+}): Task {
+  const t: Task = {
+    id: newId("t"),
+    title: input.title,
+    groupId: input.groupId,
+    status: "queued",
+    order: input.order,
+    priority: input.priority ?? 2,
+    dueAt: input.dueAt ?? null,
+    scheduledAt: input.scheduledAt ?? null,
+    estimationMinutes: input.estimationMinutes ?? null,
+    tags: input.tags ?? [],
+    createdAt: nowIso(),
+    creatorSub: null,
+  };
+  return stampUpdated(t);
+}
+
+export function buildGroup(input: { name: string; order: number }): Group {
+  const g: Group = {
+    id: newId("grp"),
+    name: input.name,
+    order: input.order,
+    collapsed: false,
+  };
+  return stampUpdated(g);
+}
+
+export function buildNote(input: {
+  text: string;
+  title?: string | null;
+  source?: "user" | "ai";
+}): TaskNote {
+  const now = nowIso();
+  return {
+    id: newId("n"),
+    html: `<p>${escapeHtml(input.text)}</p>`,
+    title: input.title ?? null,
+    source: input.source ?? "ai",
+    createdAt: now,
+    updatedAt: now,
+  };
+}

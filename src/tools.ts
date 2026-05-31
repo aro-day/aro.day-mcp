@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { newId, nowIso, stampUpdated, escapeHtml, type Task, type Group, type TaskNote } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, type Task } from "./state.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
 
@@ -138,21 +138,13 @@ export function registerTools(server: McpServer): void {
     const groupId = args.projectId ?? s.groups[0]?.id;
     if (!groupId) throw new Error("No project exists. Create one first with create_project.");
     requireGroup(s, groupId);
-    const t: Task = {
-      id: newId("t"), title: args.title, groupId, status: "queued",
-      priority: (args.priority ?? 2) as Task["priority"], order: s.tasks.length,
-      dueAt: args.dueAt ?? null, scheduledAt: args.scheduledAt ?? null,
-      estimationMinutes: args.estimationMinutes ?? null, tags: args.tags ?? [],
-      createdAt: nowIso(), creatorSub: null,
-    };
-    stampUpdated(t);
-    if (args.notes) {
-      const note: TaskNote = {
-        id: newId("n"), html: `<p>${escapeHtml(args.notes)}</p>`, source: "ai",
-        createdAt: nowIso(), updatedAt: nowIso(),
-      };
-      t.noteList = [note];
-    }
+    const t = buildTask({
+      title: args.title, groupId, order: s.tasks.length,
+      priority: args.priority as Task["priority"],
+      dueAt: args.dueAt, scheduledAt: args.scheduledAt,
+      estimationMinutes: args.estimationMinutes, tags: args.tags,
+    });
+    if (args.notes) t.noteList = [buildNote({ text: args.notes, source: "ai" })];
     s.tasks.push(t);
     return { created: t.id, title: t.title };
   })));
@@ -201,10 +193,7 @@ export function registerTools(server: McpServer): void {
     },
   }, async (args) => json(await mutate((s) => {
     const t = requireTask(s, args.taskId);
-    const note: TaskNote = {
-      id: newId("n"), html: `<p>${escapeHtml(args.text)}</p>`,
-      title: args.title ?? null, source: "ai", createdAt: nowIso(), updatedAt: nowIso(),
-    };
+    const note = buildNote({ text: args.text, title: args.title, source: "ai" });
     t.noteList = [...(t.noteList ?? []), note];
     stampUpdated(t);
     return { taskId: t.id, noteId: note.id };
@@ -218,8 +207,7 @@ export function registerTools(server: McpServer): void {
     if (s.groups.some((g) => g.name.toLowerCase() === args.name.toLowerCase())) {
       throw new Error(`A project named "${args.name}" already exists.`);
     }
-    const g: Group = { id: newId("grp"), name: args.name, order: s.groups.length, collapsed: false };
-    stampUpdated(g);
+    const g = buildGroup({ name: args.name, order: s.groups.length });
     s.groups.push(g);
     return { created: g.id, name: g.name };
   })));
