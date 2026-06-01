@@ -54,13 +54,16 @@ write it back as a note."*
 | `whoami` | connected account + project/task counts |
 | `list_projects` | all projects |
 | `list_tasks` | tasks, filterable (project, status, overdue, scheduled-today, tag) |
-| `get_task` | one task in full (incl. notes) |
+| `get_task` | one task in full (incl. notes + steps) |
 | `search_tasks` | title substring search |
 | `get_today_plan` | scheduled-today + overdue |
 | `create_task` | create a task |
 | `update_task` | patch title/priority/due/scheduled/estimate/tags |
 | `complete_task` | mark done |
 | `append_note` | write a note back to a task (marked AI-authored) |
+| `add_steps` | break a task into one or more steps (a one-level checklist) |
+| `set_step_done` | check / uncheck a step (does not auto-complete the task) |
+| `delete_step` | remove a step from a task |
 | `create_project` | create a project |
 | `find_task_for_session` | rank existing tasks that match a session (repo/branch/hint) so you can log to the right one |
 

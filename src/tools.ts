@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, type Task } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, type Task } from "./state.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
 
@@ -20,10 +20,13 @@ function endOfTodayMs(): number {
 }
 
 function taskSummary(t: Task, groupName: string) {
+  const subs = t.subtasks ?? [];
   return {
     id: t.id, title: t.title, project: groupName, status: t.status,
     priority: t.priority ?? null, dueAt: t.dueAt ?? null, scheduledAt: t.scheduledAt ?? null,
     estimationMinutes: t.estimationMinutes ?? null, blocked: !!t.blocked, tags: t.tags ?? [],
+    // Steps progress (one-level checklist); null when the task has no steps.
+    steps: subs.length ? { done: subs.filter((x) => x.done).length, total: subs.length } : null,
   };
 }
 
@@ -197,6 +200,57 @@ export function registerTools(server: McpServer): void {
     t.noteList = [...(t.noteList ?? []), note];
     stampUpdated(t);
     return { taskId: t.id, noteId: note.id };
+  })));
+
+  // --- steps (one-level subtasks / checklist) ---
+  server.registerTool("add_steps", {
+    title: "Add steps",
+    description:
+      "Break a task into one or more steps (a one-level checklist). Appends to " +
+      "any existing steps. Great for turning a vague task into concrete sub-steps.",
+    inputSchema: {
+      taskId: z.string(),
+      titles: z.array(z.string().min(1)).min(1).max(50).describe("Step titles, in order"),
+    },
+  }, async (args) => json(await mutate((s) => {
+    const t = requireTask(s, args.taskId);
+    if (!Array.isArray(t.subtasks)) t.subtasks = [];
+    const added = args.titles.map((title) => {
+      const st = buildSubtask(title, t.subtasks!.length);
+      t.subtasks!.push(st);
+      return st.id;
+    });
+    stampUpdated(t);
+    return { taskId: t.id, added };
+  })));
+
+  server.registerTool("set_step_done", {
+    title: "Check / uncheck a step",
+    description:
+      "Mark a step done or not done. Checking steps does NOT auto-complete the " +
+      "task — use complete_task for that.",
+    inputSchema: { taskId: z.string(), stepId: z.string(), done: z.boolean() },
+  }, async (args) => json(await mutate((s) => {
+    const t = requireTask(s, args.taskId);
+    const st = (t.subtasks ?? []).find((x) => x.id === args.stepId);
+    if (!st) throw new Error(`Step "${args.stepId}" not found on task ${args.taskId}.`);
+    st.done = args.done;
+    st.doneAt = args.done ? nowIso() : null;
+    stampUpdated(t);
+    return { taskId: t.id, stepId: st.id, done: st.done };
+  })));
+
+  server.registerTool("delete_step", {
+    title: "Delete a step",
+    description: "Remove a step from a task's checklist.",
+    inputSchema: { taskId: z.string(), stepId: z.string() },
+  }, async (args) => json(await mutate((s) => {
+    const t = requireTask(s, args.taskId);
+    const before = (t.subtasks ?? []).length;
+    t.subtasks = (t.subtasks ?? []).filter((x) => x.id !== args.stepId);
+    if (t.subtasks.length === before) throw new Error(`Step "${args.stepId}" not found on task ${args.taskId}.`);
+    stampUpdated(t);
+    return { taskId: t.id, removed: args.stepId };
   })));
 
   server.registerTool("create_project", {
