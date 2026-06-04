@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, type Task } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, defaultProjectId, type Task } from "./state.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
 
@@ -126,7 +126,7 @@ export function registerTools(server: McpServer): void {
   // --- writes (read-mutate-write; each stamps a fresh updatedAt for LWW) ---
   server.registerTool("create_task", {
     title: "Create task",
-    description: "Create a task. projectId is optional — defaults to the first project.",
+    description: "Create a task. projectId is optional — defaults to the first non-habit project.",
     inputSchema: {
       title: z.string().min(1),
       projectId: z.string().optional(),
@@ -138,7 +138,7 @@ export function registerTools(server: McpServer): void {
       tags: z.array(z.string()).max(12).optional(),
     },
   }, async (args) => json(await mutate((s) => {
-    const groupId = args.projectId ?? s.groups[0]?.id;
+    const groupId = args.projectId ?? defaultProjectId(s);
     if (!groupId) throw new Error("No project exists. Create one first with create_project.");
     requireGroup(s, groupId);
     const t = buildTask({

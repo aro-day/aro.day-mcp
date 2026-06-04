@@ -111,6 +111,16 @@ export function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// The project a new task lands in when the caller gives no projectId.
+// Skips habit-kind groups: Habits is order 0 in the app, but it's a
+// closed/locked project (the app blocks moving tasks out of it), so a
+// plain MCP-created task dropped there would be trapped. Fall back to the
+// first group only if every group is a habit group.
+export function defaultProjectId(state: Pick<TodoState, "groups">): string | undefined {
+  const groups = state.groups ?? [];
+  return (groups.find((g) => g.kind !== "habit") ?? groups[0])?.id;
+}
+
 // Stamp updatedAt (the LWW key) on an entity. Returns the same object.
 export function stampUpdated<T extends { updatedAt?: string }>(entity: T): T {
   entity.updatedAt = nowIso();
