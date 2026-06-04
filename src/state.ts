@@ -13,6 +13,18 @@ export interface TaskNote {
   updatedAt: string;
 }
 
+// One step of a task's "Steps" checklist (one-level subtasks). Mirror of
+// the app's Subtask (todo repo → src/types/window-state.d.ts). One level
+// only — a step never carries its own steps.
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+  createdAt: string;
+  doneAt?: string | null;
+  order: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -27,6 +39,7 @@ export interface Task {
   blockReason?: string | null;
   tags?: string[];
   noteList?: TaskNote[];
+  subtasks?: Subtask[]; // one-level "Steps" checklist (optional; app guards it)
   notesHtml?: string | null;
   createdAt?: string;
   updatedAt?: string; // REQUIRED for LWW — stamped on every mutation
@@ -150,6 +163,12 @@ export function buildTask(input: {
     creatorSub: null,
   };
   return stampUpdated(t);
+}
+
+// A step. Like noteList, subtasks is left absent on a fresh task and
+// initialized on the first add (the app backfills [] on read, rule 01).
+export function buildSubtask(title: string, order: number): Subtask {
+  return { id: newId("st"), title, done: false, createdAt: nowIso(), order };
 }
 
 export function buildGroup(input: { name: string; order: number }): Group {
