@@ -1,11 +1,14 @@
-# Publish aroday-mcp to npm when a GitHub Release is published. Inert until
-# the repo owner adds an NPM_TOKEN secret and creates a release. Builds via
+# Publish aroday-mcp to npm on every push to main. The version guard checks the
+# registry first and publishes only when package.json's version is not already
+# there, so ordinary pushes are no-ops and a publish happens only when you bump
+# the version. Inert until the repo owner adds an NPM_TOKEN secret. Builds via
 # the `prepare` script (run by `npm ci`); publishes with provenance.
 name: Publish
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -21,6 +24,23 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run typecheck
-      - run: npm publish --provenance --access public
+      - name: Check whether this version is already published
+        id: guard
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          # npm view exits 0 with empty output when the package exists but this
+          # version doesn't, so branch on stdout content, not exit code.
+          PUBLISHED=$(npm view "$NAME@$VERSION" version 2>/dev/null || true)
+          if [ -n "$PUBLISHED" ]; then
+            echo "$NAME@$VERSION already on registry — skipping publish."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$NAME@$VERSION not published — will publish."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish
+        if: steps.guard.outputs.exists == 'false'
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
