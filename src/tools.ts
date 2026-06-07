@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, defaultProjectId, type Task } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, renderNoteHtml, defaultProjectId, type Task } from "./state.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
 
@@ -200,6 +200,42 @@ export function registerTools(server: McpServer): void {
     t.noteList = [...(t.noteList ?? []), note];
     stampUpdated(t);
     return { taskId: t.id, noteId: note.id };
+  })));
+
+  server.registerTool("set_note", {
+    title: "Replace a note's text",
+    description:
+      "Replace the text of an existing note (re-renders structure: blank lines " +
+      "split paragraphs, '- ' lines become a bullet list). Use to fix or " +
+      "restructure a note the connector wrote.",
+    inputSchema: {
+      taskId: z.string(),
+      noteId: z.string(),
+      text: z.string().min(1),
+      title: z.string().optional(),
+    },
+  }, async (args) => json(await mutate((s) => {
+    const t = requireTask(s, args.taskId);
+    const note = (t.noteList ?? []).find((n) => n.id === args.noteId);
+    if (!note) throw new Error(`Note "${args.noteId}" not found on task ${args.taskId}.`);
+    note.html = renderNoteHtml(args.text);
+    if (args.title !== undefined) note.title = args.title;
+    note.updatedAt = nowIso();
+    stampUpdated(t);
+    return { taskId: t.id, noteId: note.id };
+  })));
+
+  server.registerTool("delete_note", {
+    title: "Delete a note",
+    description: "Remove a note from a task.",
+    inputSchema: { taskId: z.string(), noteId: z.string() },
+  }, async (args) => json(await mutate((s) => {
+    const t = requireTask(s, args.taskId);
+    const before = (t.noteList ?? []).length;
+    t.noteList = (t.noteList ?? []).filter((n) => n.id !== args.noteId);
+    if ((t.noteList?.length ?? 0) === before) throw new Error(`Note "${args.noteId}" not found on task ${args.taskId}.`);
+    stampUpdated(t);
+    return { taskId: t.id, removed: args.noteId };
   })));
 
   // --- steps (one-level subtasks / checklist) ---
