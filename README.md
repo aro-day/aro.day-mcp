@@ -61,6 +61,8 @@ write it back as a note."*
 | `update_task` | patch title/priority/due/scheduled/estimate/tags |
 | `complete_task` | mark done |
 | `append_note` | write a note back to a task (marked AI-authored) |
+| `set_note` | replace an existing note's text (re-renders structure) |
+| `delete_note` | remove a note from a task |
 | `add_steps` | break a task into one or more steps (a one-level checklist) |
 | `set_step_done` | check / uncheck a step (does not auto-complete the task) |
 | `delete_step` | remove a step from a task |
