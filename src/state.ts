@@ -137,6 +137,26 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Render a plain-text note into the small, safe HTML subset the app's note
+// view displays. Escapes ALL user text, then adds structure: a blank line
+// starts a new <p>; lines beginning "- ", "* ", or "• " become a <ul><li>
+// list; single newlines inside a block become <br>. Only <p>/<br>/<ul>/<li>
+// are emitted — the tags the app already renders — so a multi-line note
+// shows structure instead of the old single-paragraph wall. buildNote and
+// set_note both route through this so connector notes render like the app's.
+export function renderNoteHtml(text: string): string {
+  const BULLET = /^[ \t]*[-*•][ \t]+/; // "- ", "* ", or "• " (markdown-ish)
+  const blocks = text.replace(/\r\n/g, "\n").trim().split(/\n{2,}/);
+  const out = blocks.map((block) => {
+    const lines = block.split("\n").filter((l) => l.trim() !== "");
+    if (lines.length > 0 && lines.every((l) => BULLET.test(l))) {
+      return `<ul>${lines.map((l) => `<li>${escapeHtml(l.replace(BULLET, ""))}</li>`).join("")}</ul>`;
+    }
+    return `<p>${lines.map((l) => escapeHtml(l)).join("<br>")}</p>`;
+  }).join("");
+  return out || "<p></p>";
+}
+
 // --- entity builders ------------------------------------------------------
 // The connector writes back the SAME schemaVersion it read (drive.ts), and
 // the app's migration is version-gated (migrateStateInPlace only runs when
@@ -199,7 +219,7 @@ export function buildNote(input: {
   const now = nowIso();
   return {
     id: newId("n"),
-    html: `<p>${escapeHtml(input.text)}</p>`,
+    html: renderNoteHtml(input.text),
     title: input.title ?? null,
     source: input.source ?? "ai",
     createdAt: now,
