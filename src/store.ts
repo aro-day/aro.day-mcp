@@ -8,6 +8,7 @@
 
 import { loadState, saveState } from "./drive.js";
 import { stampMeta, type TodoState, type Task, type Group } from "./state.js";
+import { hoistTaskNotes } from "./notes.js";
 
 export async function getState(): Promise<TodoState> {
   const state = await loadState();
@@ -17,6 +18,10 @@ export async function getState(): Promise<TodoState> {
       "to create it, then try again.",
     );
   }
+  // Guarantee notes[] and fold any legacy task.noteList into it — the same
+  // normalization the app runs on every load (migrations-additive.ts), so
+  // every tool reads and writes one shape whatever the blob's schemaVersion.
+  hoistTaskNotes(state);
   return state;
 }
 

@@ -13,6 +13,39 @@ export interface TaskNote {
   updatedAt: string;
 }
 
+// Where a note lives; null on Note.home = Loose. Mirror of the app's
+// NoteHome (todo repo → src/types/window-state.d.ts).
+export interface NoteHome {
+  kind: "task" | "project";
+  id: string;
+}
+
+// v44+: a note in TodoState.notes (top-level collection, merged per note
+// on updatedAt + tombstones by the app's sync-merge.ts). Every write MUST
+// bump updatedAt; delete is a soft delete (deletedAt). Mirror of the app's
+// Note (src/types/window-state.d.ts) — keep in lockstep.
+export interface Note extends TaskNote {
+  home: NoteHome | null;
+  templateId?: string | null; // built-in or user template the note came from
+  pinned?: boolean;
+  tags?: string[];
+  deletedAt?: string | null;
+}
+
+// A user-saved note template (TodoState.noteTemplates). Read-only here —
+// the connector instantiates them but never edits them. Mirror of the app's
+// NoteTemplate (src/types/window-state.d.ts).
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  glyph: string;
+  titlePattern: string;
+  html: string;
+  defaultHome: "project" | "loose" | "context";
+  createdAt: string;
+  updatedAt: string;
+}
+
 // One step of a task's "Steps" checklist (one-level subtasks). Mirror of
 // the app's Subtask (todo repo → src/types/window-state.d.ts). One level
 // only — a step never carries its own steps.
@@ -38,6 +71,8 @@ export interface Task {
   blocked?: boolean;
   blockReason?: string | null;
   tags?: string[];
+  // Pre-v44 note storage. Hoisted into TodoState.notes on every load
+  // (notes.ts hoistTaskNotes) and never written by the connector anymore.
   noteList?: TaskNote[];
   subtasks?: Subtask[]; // one-level "Steps" checklist (optional; app guards it)
   notesHtml?: string | null;
@@ -97,6 +132,8 @@ export interface TodoState {
   tombstones: unknown[];
   externalEvents: unknown[];
   aiJobs?: AiJob[];
+  notes?: Note[]; // v44+; store.ts getState() guarantees an array
+  noteTemplates?: NoteTemplate[];
   settings: Record<string, unknown>;
   meta: { lastModifiedBy: string; lastModifiedAt: string; [k: string]: unknown };
   [k: string]: unknown;
@@ -211,18 +248,29 @@ export function buildGroup(input: { name: string; order: number }): Group {
   return stampUpdated(g);
 }
 
+// A note for TodoState.notes. `html` (already-rendered, e.g. a filled
+// template) wins over `text` (plain text → renderNoteHtml). Same id prefix
+// as the app's notes-actions.ts (newId("note")).
 export function buildNote(input: {
-  text: string;
+  home: NoteHome | null;
+  text?: string;
+  html?: string;
   title?: string | null;
+  templateId?: string | null;
+  tags?: string[];
   source?: "user" | "ai";
-}): TaskNote {
+}): Note {
   const now = nowIso();
-  return {
-    id: newId("n"),
-    html: renderNoteHtml(input.text),
+  const note: Note = {
+    id: newId("note"),
+    html: input.html ?? renderNoteHtml(input.text ?? ""),
     title: input.title ?? null,
+    home: input.home,
+    templateId: input.templateId ?? null,
     source: input.source ?? "ai",
     createdAt: now,
     updatedAt: now,
   };
+  if (input.tags && input.tags.length > 0) note.tags = input.tags;
+  return note;
 }
