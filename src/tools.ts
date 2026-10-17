@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { nowIso, stampUpdated, buildTask, buildGroup, buildSubtask, defaultProjectId, type Task } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildSubtask, defaultProjectId, isHabitGroup, visibleTasks, type Task } from "./state.js";
 import { createNoteOp, taskWithNotes } from "./note-ops.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
@@ -42,8 +42,9 @@ export function registerTools(server: McpServer): void {
     const sess = readSession();
     return json({
       clientId: sess?.clientId ?? null,
-      projects: s.groups.length,
-      tasks: s.tasks.length,
+      projects: s.groups.filter((g) => !isHabitGroup(g)).length,
+      tasks: visibleTasks(s).length,
+      habits: (s.habits ?? []).filter((h) => !h.archivedAt).length,
       lastModifiedBy: s.meta?.lastModifiedBy ?? null,
     });
   });
@@ -51,11 +52,12 @@ export function registerTools(server: McpServer): void {
   // --- reads ---
   server.registerTool("list_projects", {
     title: "List projects",
-    description: "List all projects (groups) with their ids.",
+    description: "List all projects (groups) with their ids. Habits are not a project — use list_habits.",
     inputSchema: {},
   }, async () => {
     const s = await getState();
-    return json(s.groups.map((g) => ({ id: g.id, name: g.name, kind: g.kind ?? null })));
+    // The old Habits project is hidden in the app since v45 (v46 deletes it)
+    return json(s.groups.filter((g) => !isHabitGroup(g)).map((g) => ({ id: g.id, name: g.name })));
   });
 
   server.registerTool("list_tasks", {
@@ -73,7 +75,7 @@ export function registerTools(server: McpServer): void {
     const s = await getState();
     const names = new Map(s.groups.map((g) => [g.id, g.name]));
     const now = Date.now();
-    let tasks = s.tasks.filter((t) => !t.archived);
+    let tasks = visibleTasks(s);
     if (args.projectId) tasks = tasks.filter((t) => t.groupId === args.projectId);
     if (args.status) tasks = tasks.filter((t) => t.status === args.status);
     if (args.tag) tasks = tasks.filter((t) => (t.tags ?? []).includes(args.tag!));
@@ -102,7 +104,7 @@ export function registerTools(server: McpServer): void {
     const s = await getState();
     const names = new Map(s.groups.map((g) => [g.id, g.name]));
     const q = args.query.toLowerCase();
-    return json(s.tasks.filter((t) => !t.archived && t.title.toLowerCase().includes(q))
+    return json(visibleTasks(s).filter((t) => t.title.toLowerCase().includes(q))
       .map((t) => taskSummary(t, names.get(t.groupId) ?? "?")));
   });
 
@@ -114,9 +116,10 @@ export function registerTools(server: McpServer): void {
     const s = await getState();
     const names = new Map(s.groups.map((g) => [g.id, g.name]));
     const lo = startOfTodayMs(), hi = endOfTodayMs(), now = Date.now();
-    const scheduledToday = s.tasks.filter((t) => !t.archived && t.scheduledAt &&
+    const visible = visibleTasks(s);
+    const scheduledToday = visible.filter((t) => t.scheduledAt &&
       new Date(t.scheduledAt).getTime() >= lo && new Date(t.scheduledAt).getTime() < hi);
-    const overdue = s.tasks.filter((t) => !t.archived && t.status !== "done" && t.dueAt &&
+    const overdue = visible.filter((t) => t.status !== "done" && t.dueAt &&
       new Date(t.dueAt).getTime() < now);
     return json({
       scheduledToday: scheduledToday.map((t) => taskSummary(t, names.get(t.groupId) ?? "?")),
@@ -141,7 +144,9 @@ export function registerTools(server: McpServer): void {
   }, async (args) => json(await mutate((s) => {
     const groupId = args.projectId ?? defaultProjectId(s);
     if (!groupId) throw new Error("No project exists. Create one first with create_project.");
-    requireGroup(s, groupId);
+    if (isHabitGroup(requireGroup(s, groupId))) {
+      throw new Error("Tasks can't go in the Habits project. Use create_habit for a habit, or pick another project.");
+    }
     const t = buildTask({
       title: args.title, groupId, order: s.tasks.length,
       priority: args.priority as Task["priority"],
@@ -274,7 +279,7 @@ export function registerTools(server: McpServer): void {
     const s = await getState();
     const names = new Map(s.groups.map((g) => [g.id, g.name]));
     const byId = new Map(s.tasks.map((t) => [t.id, t]));
-    const ranked = rankTasksForSession(s.tasks, { repo: args.repo, branch: args.branch, hint: args.hint });
+    const ranked = rankTasksForSession(visibleTasks(s), { repo: args.repo, branch: args.branch, hint: args.hint });
     // Default to confirming (ask before acting) unless the user explicitly
     // turned it off in Settings → Integrations.
     const mcp = (s.settings as { mcp?: { captureConfirm?: boolean } } | undefined)?.mcp;

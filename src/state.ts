@@ -3,6 +3,10 @@
 // schema lives in the app repo (src/types/window-state.d.ts); keep the
 // field names + the `updatedAt` LWW contract in lockstep with it.
 
+import type { Habit, HabitLog } from "./habit-types.js";
+
+export type { Habit, HabitCadence, HabitLog, HabitTimeOfDay, HabitType } from "./habit-types.js";
+
 export interface TaskNote {
   id: string;
   html: string;
@@ -134,6 +138,8 @@ export interface TodoState {
   aiJobs?: AiJob[];
   notes?: Note[]; // v44+; store.ts getState() guarantees an array
   noteTemplates?: NoteTemplate[];
+  habits?: Habit[]; // v45+; habit-ops.ts requireHabitsModel guards old blobs
+  habitLogs?: HabitLog[];
   settings: Record<string, unknown>;
   meta: { lastModifiedBy: string; lastModifiedAt: string; [k: string]: unknown };
   [k: string]: unknown;
@@ -148,14 +154,28 @@ export function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// The project a new task lands in when the caller gives no projectId.
-// Skips habit-kind groups: Habits is order 0 in the app, but it's a
-// closed/locked project (the app blocks moving tasks out of it), so a
-// plain MCP-created task dropped there would be trapped. Fall back to the
-// first group only if every group is a habit group.
+// The old Habits project (app's HABITS_PROJECT_ID / GROUP_KIND_HABIT in
+// src/lib/habit-constants.ts). Since app v45 habits live in habits[] and
+// this group is hidden (v46 deletes it with its rows), so a task written
+// into it would be an old-shape habit row the app throws away.
+export const HABITS_PROJECT_ID = "grp_habits";
+export function isHabitGroup(g: { id?: string; kind?: string | null } | null | undefined): boolean {
+  return !!g && (g.id === HABITS_PROJECT_ID || g.kind === "habit");
+}
+
+// Tasks a user sees on the board: not archived, and not a habit card row
+// (pre-v45 habits are task rows in the Habits project; list them with
+// list_habits once the app has upgraded the blob).
+export function visibleTasks(state: Pick<TodoState, "tasks" | "groups">): Task[] {
+  const habitGroups = new Set((state.groups ?? []).filter(isHabitGroup).map((g) => g.id));
+  return (state.tasks ?? []).filter((t) => !t.archived && !habitGroups.has(t.groupId));
+}
+
+// The project a new task lands in when the caller gives no projectId:
+// the first non-habit project, or undefined when there is none (a habit
+// group is never a valid home for a task — see isHabitGroup).
 export function defaultProjectId(state: Pick<TodoState, "groups">): string | undefined {
-  const groups = state.groups ?? [];
-  return (groups.find((g) => g.kind !== "habit") ?? groups[0])?.id;
+  return (state.groups ?? []).find((g) => !isHabitGroup(g))?.id;
 }
 
 // Stamp updatedAt (the LWW key) on an entity. Returns the same object.

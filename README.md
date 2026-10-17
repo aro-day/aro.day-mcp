@@ -11,7 +11,7 @@ mint short-lived, Pro-gated Google Drive access tokens. Your Google
 refresh token never reaches this client — it stays encrypted on the
 server. This is why the connector is open source: so you can verify it.
 
-> Status: **v0.1** — read/write tasks, projects, and notes.
+> Status: **v0.1** — read/write tasks, projects, notes, and habits.
 
 ## Install
 
@@ -45,14 +45,14 @@ Add the server to your client's MCP config. Example (Claude Desktop
 
 Then ask your client: *"what's on my plate today?"*, *"add a task to
 outline the thesis intro due Friday"*, *"take a first pass at the RFC and
-write it back as a note."*
+write it back as a note"*, *"log 3 glasses of water."*
 
 ## Tools
 
 | Tool | What it does |
 |---|---|
-| `whoami` | connected account + project/task counts |
-| `list_projects` | all projects |
+| `whoami` | connected account + project/task/habit counts |
+| `list_projects` | all projects (habits are not a project — see `list_habits`) |
 | `list_tasks` | tasks, filterable (project, status, overdue, scheduled-today, tag) |
 | `get_task` | one task in full (incl. its notes + steps) |
 | `search_tasks` | title substring search |
@@ -72,6 +72,12 @@ write it back as a note."*
 | `set_step_done` | check / uncheck a step (does not auto-complete the task) |
 | `delete_step` | remove a step from a task |
 | `create_project` | create a project |
+| `list_habits` | habits with today's status: due, value vs target, done, skipped, week/month progress, current streak |
+| `get_habit` | one habit in full with its recent day entries |
+| `create_habit` | create a habit (check, count, timer, or limit; daily, set weekdays, N per week/month, or every N days) |
+| `update_habit` | patch a habit's name, goal, unit, schedule, time, reminders, look |
+| `log_habit` | record a day (default today): set or add to the amount, skip, note, or clear |
+| `archive_habit` | archive a habit, or bring it back |
 | `find_task_for_session` | rank existing tasks that match a session (repo/branch/hint) so you can log to the right one |
 
 These are **deterministic** capabilities — the *intelligence* is your
@@ -109,6 +115,9 @@ default on) — so the agent suggests the right task instead of guessing.
 - **Last-write-wins** — the connector reads fresh, mutates, and writes;
   a concurrent edit from another device in the sub-second write window
   can be lost. Fine for single-user use; full conflict-merge is planned.
+- **Habits need aro.day's new habits format** — if your data predates it,
+  the habit tools ask you to open aro.day once so it upgrades your habits.
+  "Today" is your computer's local date.
 - **Built-in note templates are English** — headings and dates come out in
   English whatever your aro.day language is. Your own templates are used
   as-is.
