@@ -54,15 +54,20 @@ write it back as a note."*
 | `whoami` | connected account + project/task counts |
 | `list_projects` | all projects |
 | `list_tasks` | tasks, filterable (project, status, overdue, scheduled-today, tag) |
-| `get_task` | one task in full (incl. notes + steps) |
+| `get_task` | one task in full (incl. its notes + steps) |
 | `search_tasks` | title substring search |
 | `get_today_plan` | scheduled-today + overdue |
 | `create_task` | create a task |
 | `update_task` | patch title/priority/due/scheduled/estimate/tags |
 | `complete_task` | mark done |
-| `append_note` | write a note back to a task (marked AI-authored) |
-| `set_note` | replace an existing note's text (re-renders structure) |
-| `delete_note` | remove a note from a task |
+| `list_notes` | notes with a short preview, filterable (task, project, loose, text query) |
+| `get_note` | one note in full |
+| `list_note_templates` | built-in and your own note templates, with their sections |
+| `create_note` | create a note on a task, on a project, or loose (marked AI-authored) |
+| `create_note_from_template` | create a note from a template (meeting, decision, brief, daily, weekly, retro, research, or one of yours) |
+| `append_note` | write a note back to a task (same as `create_note` with a task) |
+| `set_note` | edit a note by id: text (re-renders structure), title, tags, pinned |
+| `delete_note` | delete a note by id (restorable from aro.day's Deleted notes for 30 days) |
 | `add_steps` | break a task into one or more steps (a one-level checklist) |
 | `set_step_done` | check / uncheck a step (does not auto-complete the task) |
 | `delete_step` | remove a step from a task |
@@ -104,6 +109,9 @@ default on) — so the agent suggests the right task instead of guessing.
 - **Last-write-wins** — the connector reads fresh, mutates, and writes;
   a concurrent edit from another device in the sub-second write window
   can be lost. Fine for single-user use; full conflict-merge is planned.
+- **Built-in note templates are English** — headings and dates come out in
+  English whatever your aro.day language is. Your own templates are used
+  as-is.
 
 ## License
 

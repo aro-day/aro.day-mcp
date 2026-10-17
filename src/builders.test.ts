@@ -10,10 +10,10 @@ import { describe, expect, test } from "bun:test";
 import { buildTask, buildGroup, buildNote } from "./state.js";
 
 // Mirror of the non-optional fields in window-state.d.ts (interface Task /
-// Group / TaskNote). Keep in lockstep with that file.
+// Group / Note). Keep in lockstep with that file.
 const REQUIRED_TASK = ["id", "title", "status", "groupId", "order"] as const;
 const REQUIRED_GROUP = ["id", "name", "order", "collapsed"] as const;
-const REQUIRED_NOTE = ["id", "html", "createdAt", "updatedAt"] as const;
+const REQUIRED_NOTE = ["id", "html", "createdAt", "updatedAt"] as const; // + home (may be null = Loose)
 
 function present(obj: Record<string, unknown>, key: string): boolean {
   return key in obj && obj[key] !== undefined && obj[key] !== null;
@@ -77,7 +77,7 @@ describe("buildGroup", () => {
 });
 
 describe("buildNote", () => {
-  const n = buildNote({ text: "ran the build" }) as unknown as Record<string, unknown>;
+  const n = buildNote({ home: { kind: "task", id: "t_1" }, text: "ran the build" }) as unknown as Record<string, unknown>;
 
   for (const key of REQUIRED_NOTE) {
     test(`sets required field "${key}"`, () => {
@@ -86,7 +86,7 @@ describe("buildNote", () => {
   }
 
   test("escapes HTML in the note text", () => {
-    const evil = buildNote({ text: "<script>alert(1)</script>" }) as unknown as Record<string, unknown>;
+    const evil = buildNote({ home: null, text: "<script>alert(1)</script>" }) as unknown as Record<string, unknown>;
     expect(evil.html).toBe("<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
   });
   test("source defaults to ai (connector provenance)", () => {
@@ -94,5 +94,18 @@ describe("buildNote", () => {
   });
   test("createdAt and updatedAt share the same stamp", () => {
     expect(n.createdAt).toBe(n.updatedAt);
+  });
+  test("home is always present — the task home, or null for a loose note", () => {
+    expect(n.home).toEqual({ kind: "task", id: "t_1" });
+    const loose = buildNote({ home: null, text: "x" }) as unknown as Record<string, unknown>;
+    expect("home" in loose).toBe(true);
+    expect(loose.home).toBeNull();
+  });
+  test("uses the app's note id prefix", () => {
+    expect(String(n.id).startsWith("note_")).toBe(true);
+  });
+  test("pre-rendered html wins over text (template notes)", () => {
+    const t = buildNote({ home: null, html: "<h2>Agenda</h2>", text: "ignored" });
+    expect(t.html).toBe("<h2>Agenda</h2>");
   });
 });

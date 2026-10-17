@@ -5,7 +5,8 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getState, mutate, requireTask, requireGroup } from "./store.js";
-import { nowIso, stampUpdated, buildTask, buildGroup, buildNote, buildSubtask, renderNoteHtml, defaultProjectId, type Task } from "./state.js";
+import { nowIso, stampUpdated, buildTask, buildGroup, buildSubtask, defaultProjectId, type Task } from "./state.js";
+import { createNoteOp, taskWithNotes } from "./note-ops.js";
 import { rankTasksForSession } from "./session-match.js";
 import { readSession } from "./auth.js";
 
@@ -86,11 +87,11 @@ export function registerTools(server: McpServer): void {
 
   server.registerTool("get_task", {
     title: "Get task",
-    description: "Get one task in full, including its notes.",
+    description: "Get one task in full, including its notes and steps.",
     inputSchema: { id: z.string() },
   }, async (args) => {
     const s = await getState();
-    return json(requireTask(s, args.id));
+    return json(taskWithNotes(s, requireTask(s, args.id)));
   });
 
   server.registerTool("search_tasks", {
@@ -147,8 +148,8 @@ export function registerTools(server: McpServer): void {
       dueAt: args.dueAt, scheduledAt: args.scheduledAt,
       estimationMinutes: args.estimationMinutes, tags: args.tags,
     });
-    if (args.notes) t.noteList = [buildNote({ text: args.notes, source: "ai" })];
     s.tasks.push(t);
+    if (args.notes) createNoteOp(s, { taskId: t.id, text: args.notes });
     return { created: t.id, title: t.title };
   })));
 
@@ -184,58 +185,6 @@ export function registerTools(server: McpServer): void {
     const t = requireTask(s, args.id);
     t.status = "done"; t.completedAt = nowIso(); stampUpdated(t);
     return { completed: t.id };
-  })));
-
-  server.registerTool("append_note", {
-    title: "Append note",
-    description: "Add a note to a task. Use to write back what an AI did (a first pass, a result).",
-    inputSchema: {
-      taskId: z.string(),
-      text: z.string().min(1),
-      title: z.string().optional(),
-    },
-  }, async (args) => json(await mutate((s) => {
-    const t = requireTask(s, args.taskId);
-    const note = buildNote({ text: args.text, title: args.title, source: "ai" });
-    t.noteList = [...(t.noteList ?? []), note];
-    stampUpdated(t);
-    return { taskId: t.id, noteId: note.id };
-  })));
-
-  server.registerTool("set_note", {
-    title: "Replace a note's text",
-    description:
-      "Replace the text of an existing note (re-renders structure: blank lines " +
-      "split paragraphs, '- ' lines become a bullet list). Use to fix or " +
-      "restructure a note the connector wrote.",
-    inputSchema: {
-      taskId: z.string(),
-      noteId: z.string(),
-      text: z.string().min(1),
-      title: z.string().optional(),
-    },
-  }, async (args) => json(await mutate((s) => {
-    const t = requireTask(s, args.taskId);
-    const note = (t.noteList ?? []).find((n) => n.id === args.noteId);
-    if (!note) throw new Error(`Note "${args.noteId}" not found on task ${args.taskId}.`);
-    note.html = renderNoteHtml(args.text);
-    if (args.title !== undefined) note.title = args.title;
-    note.updatedAt = nowIso();
-    stampUpdated(t);
-    return { taskId: t.id, noteId: note.id };
-  })));
-
-  server.registerTool("delete_note", {
-    title: "Delete a note",
-    description: "Remove a note from a task.",
-    inputSchema: { taskId: z.string(), noteId: z.string() },
-  }, async (args) => json(await mutate((s) => {
-    const t = requireTask(s, args.taskId);
-    const before = (t.noteList ?? []).length;
-    t.noteList = (t.noteList ?? []).filter((n) => n.id !== args.noteId);
-    if ((t.noteList?.length ?? 0) === before) throw new Error(`Note "${args.noteId}" not found on task ${args.taskId}.`);
-    stampUpdated(t);
-    return { taskId: t.id, removed: args.noteId };
   })));
 
   // --- steps (one-level subtasks / checklist) ---
