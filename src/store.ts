@@ -7,7 +7,7 @@
 // good enough for v1. A full read-merge-write can be added later.
 
 import { loadState, saveState } from "./drive.js";
-import { stampMeta, type TodoState, type Task, type Group } from "./state.js";
+import { isHabitGroup, stampMeta, type TodoState, type Task, type Group } from "./state.js";
 import { hoistTaskNotes } from "./notes.js";
 
 export async function getState(): Promise<TodoState> {
@@ -44,9 +44,15 @@ export function groupById(state: TodoState, id: string): Group | undefined {
   return state.groups.find((g) => g.id === id);
 }
 
+// Refuses old habit card rows (tasks in the Habits project): since app v45
+// habits live in habits[] and those rows are hidden, then deleted at v46, so
+// editing one would write a shape the app throws away.
 export function requireTask(state: TodoState, id: string): Task {
   const t = taskById(state, id);
   if (!t) throw new Error(`No task with id "${id}".`);
+  if (isHabitGroup(groupById(state, t.groupId) ?? { id: t.groupId })) {
+    throw new Error(`"${id}" is a habit card from the old habits format, not a task. Use the habit tools (list_habits, log_habit).`);
+  }
   return t;
 }
 

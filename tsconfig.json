@@ -13,5 +13,5 @@
     "noUnusedParameters": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["**/*.test.ts", "dist"]
+  "exclude": ["**/*.test.ts", "src/habit-test-fixtures.ts", "dist"]
 }
